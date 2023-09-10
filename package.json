@@ -4,7 +4,11 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "dev:web": "turbo run dev --filter=web...",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "turbo run build && pnpm publish -r"
   },
   "devDependencies": {
     "@changesets/cli": "^2.26.2",
