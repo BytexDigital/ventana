@@ -1,0 +1,22 @@
+[ventana-content] {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  z-index: 0;
+}
+
+[ventana-tab] {
+  position: absolute;
+  pointer-events: none;
+  top: 0;
+  left: 0;
+  z-index: 0;
+}
+
+[ventana-item] {
+  position: relative;
+  z-index: 1;
+}
+
+[ventana-item][ventana-selected='true'] {
+}
