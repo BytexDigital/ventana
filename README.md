@@ -1,6 +1,6 @@
-# Turborepo starter
+![ventana-demo](https://github.com/BytexDigital/ventana/assets/12883356/40a0e901-b1b1-4422-990c-7dae0123a896)
 
-This is an official starter Turborepo.
+# Ventana
 
 ## Using this example
 
