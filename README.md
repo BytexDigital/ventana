@@ -1,4 +1,4 @@
-![ventana-demo-3](https://github.com/BytexDigital/ventana/assets/12883356/6aa1803d-b872-4499-ba5a-5c92f916a414)
+https://github.com/BytexDigital/ventana/assets/12883356/3b6387ff-cc47-46f7-a1c8-dc324f71cf4a
 
 # Ventana
 
