@@ -1,81 +1,71 @@
 https://github.com/BytexDigital/ventana/assets/12883356/3b6387ff-cc47-46f7-a1c8-dc324f71cf4a
 
-# Ventana
+<h1 align="center">Ventana</h1>
 
-## Using this example
+<p align="center">
+A fun unstyled spring motion driven popover component for React
+</p>
 
-Run the following command:
+<p align="center">
+  <a href="#installation"><strong>Installation</strong></a> ·
+  <a href="#usage"><strong>Usage</strong></a> ·
+  <a href="#components"><strong>Components</strong></a> ·
+  <a href="#acknowledgements"><strong>Acknowledgements</strong></a> ·
+  <a href="#license"><strong>License</strong></a>
+</p>
+<br/>
 
-```sh
-npx create-turbo@latest
+## Introduction
+
+Ventana is a fun unstyled spring motion driven popover component for React. Built using [Radix's Popover Primitive](https://www.radix-ui.com/primitives/docs/components/popover) and inspired by the following [video](https://www.youtube.com/watch?v=1VgrdLfDozo).
+
+## Installation
+
+Installing Ventana with npm:
+
+```bash
+npm install @ventana/react
 ```
 
-## What's inside?
+Installing Ventana with yarn:
 
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `ui`: a stub React component library shared by both `web` and `docs` applications
-- `eslint-config-custom`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `tsconfig`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm build
+```bash
+yarn add @ventana/react
 ```
 
-### Develop
+Installing Ventana with pnpm:
 
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm dev
+```bash
+pnpm add @ventana/react
 ```
 
-### Remote Caching
+## Usage
 
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+To use Ventana in your application, use the following:
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup), then enter the following commands:
+```tsx
+import { Ventana } from '@ventana/react';
 
+function Component() {
+  return (
+    <Ventana.Root>
+      <Ventana.Trigger>Open</Ventana.Trigger>
+      <Ventana.Portal>
+        <Ventana.Content>
+          <Ventana.Tab />
+          <Ventana.Item>
+            <h1>Item 1</h1>
+          </Ventana.Item>
+          <Ventana.Item>
+            <h1>Item 2</h1>
+          </Ventana.Item>
+          <Ventana.Item>
+            <h1>Item 3</h1>
+          </Ventana.Item>
+        </Ventana.Content>
+        <Ventana.Overlay />
+      </Ventana.Portal>
+    </Ventana.Root>
+  );
+}
 ```
-cd my-turborepo
-npx turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
