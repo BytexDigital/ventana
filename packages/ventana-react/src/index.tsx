@@ -17,7 +17,7 @@ interface VentanaProps {
   modal?: boolean;
 }
 
-const Root = ({ children, open: openProp, defaultOpen, onOpenChange, modal = true }: VentanaProps) => {
+const Root = ({ children, open: openProp, defaultOpen, onOpenChange, modal = false }: VentanaProps) => {
   const [isOpen = false, setIsOpen] = useControllableState({
     prop: openProp,
     defaultProp: defaultOpen,
