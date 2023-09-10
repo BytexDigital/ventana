@@ -8,7 +8,7 @@ A fun unstyled spring motion driven popover component for React
 
 <p align="center">
   <a href="#installation"><strong>Installation</strong></a> ·
-  <a href="#usage"><strong>Usage</strong></a> ·
+  <a href="#basic-usage"><strong>Usage</strong></a> ·
   <a href="#components"><strong>Components</strong></a> ·
   <a href="#acknowledgements"><strong>Acknowledgements</strong></a> ·
   <a href="#license"><strong>License</strong></a>
@@ -39,9 +39,9 @@ Installing Ventana with pnpm:
 pnpm add @ventana/react
 ```
 
-## Usage
+## Basic Usage
 
-To use Ventana in your application, use the following:
+To implement Ventana in your application, use the following:
 
 ```tsx
 import { Ventana } from '@ventana/react';
@@ -69,3 +69,45 @@ function Component() {
   );
 }
 ```
+
+## Components
+
+The majority of the components in Ventana are wrappers around the [Radix Popover Primitive](https://www.radix-ui.com/primitives/docs/components/popover) and inherit the same props. The API documentation for the Radix Popover Primitive can be found [here](https://www.radix-ui.com/primitives/docs/components/popover#api-reference).
+
+Styling is extremely easy with Ventana as it is unstyled by default. Simply pass in your own styles to the components and you're good to go!
+
+### Root
+
+The `Root` component is the root component of the Ventana component and contains all parts of the Popover and also provides context to its children.
+
+[Radix Popover Root Props](https://www.radix-ui.com/primitives/docs/components/popover#root)
+
+### Trigger
+
+The button that toggles the popover. By default, the Popover.Content will position itself against the trigger.
+
+[Radix Popover Trigger Props](https://www.radix-ui.com/primitives/docs/components/popover#trigger)
+
+### Portal
+
+Portals the content of the popover to the body of the document.
+
+[Radix Popover Portal Props](https://www.radix-ui.com/primitives/docs/components/popover#portal)
+
+### Content
+
+The content of the popover. By default, the Popover.Content will position itself against the trigger.
+
+[Radix Popover Content Props](https://www.radix-ui.com/primitives/docs/components/popover#content)
+
+### Tab
+
+A visual indicator of the selected item in the Popover.
+
+Props TBD
+
+### Item
+
+An item in the Popover.
+
+Props TBD
