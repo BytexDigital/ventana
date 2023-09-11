@@ -4,7 +4,8 @@ import { ElementSpringConfig, SpringConfig, spring, springGoToEnd, Cache, spring
 interface PopoverContextValue {
   triggerRef: React.RefObject<HTMLElement>;
   contentRef: React.RefObject<HTMLDivElement>;
-  contentCalculations: React.MutableRefObject<number>;
+  contentComputedCalculations: React.MutableRefObject<number>;
+  contentBoundingRect: React.MutableRefObject<DOMRect | null>;
   tabRef: React.RefObject<HTMLDivElement>;
   selectedElementRef: React.MutableRefObject<HTMLButtonElement | null>;
   // spring
@@ -27,7 +28,8 @@ interface PopoverContextValue {
 export const PopoverContext = React.createContext<PopoverContextValue>({
   triggerRef: { current: null },
   contentRef: { current: null },
-  contentCalculations: { current: 0 },
+  contentComputedCalculations: { current: 0 },
+  contentBoundingRect: { current: null },
   tabRef: { current: null },
   selectedElementRef: { current: null },
   // spring
@@ -50,7 +52,8 @@ interface PopoverProviderProps {
 export const PopoverProvider = ({ children }: PopoverProviderProps) => {
   const triggerRef = React.useRef<HTMLElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const contentCalculations = React.useRef(0);
+  const contentComputedCalculations = React.useRef(0);
+  const contentBoundingRect = React.useRef<DOMRect | null>(null);
   const tabRef = React.useRef<HTMLDivElement>(null);
   const selectedElementRef: React.MutableRefObject<HTMLButtonElement | null> = React.useRef<HTMLButtonElement | null>(
     null,
@@ -203,7 +206,7 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
 
       // first time pointer enters so enter from pointer enter direction
       if (!selectedElementRef.current && tabRef.current) {
-        contentCalculations.current = parseInt(window.getComputedStyle(contentRef.current!).paddingLeft || '0');
+        contentComputedCalculations.current = parseInt(window.getComputedStyle(contentRef.current!).paddingLeft || '0');
 
         set(tabRef.current, 'y', 'dest', relativeTop + translateY * 3, true);
       }
@@ -224,7 +227,7 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
       if (tabRef.current) {
         set(tabRef.current, 'w', 'dest', initialWidth * 1.1, true);
         set(tabRef.current, 'h', 'dest', initialHeight * 1.1, true);
-        set(tabRef.current, 'x', 'dest', 0 - halfWidthIncrease + contentCalculations.current, true);
+        set(tabRef.current, 'x', 'dest', 0 - halfWidthIncrease + contentComputedCalculations.current, true);
       }
 
       set(target, 'scaleY', 'dest', 1.1);
@@ -244,7 +247,8 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
       value={{
         triggerRef,
         contentRef,
-        contentCalculations,
+        contentComputedCalculations,
+        contentBoundingRect,
         tabRef,
         selectedElementRef,
         cache,

@@ -53,7 +53,7 @@ const Tab = React.forwardRef<HTMLDivElement, TabProps>((props, ref) => {
 type ContentProps = React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>;
 
 const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ children, ...rest }, ref) {
-  const { track, contentRef, clear, focus, set, cache, render } = usePopoverContext();
+  const { track, contentRef, contentBoundingRect, clear, focus, set, render } = usePopoverContext();
 
   // Combine the internal contentRef with the forwarded ref
   const composedRef = useComposedRefs(ref, contentRef);
@@ -67,12 +67,13 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
     Object.defineProperty(ref, 'current', {
       set: function (node: HTMLDivElement) {
         if (node) {
-          composedRef(node);
-          track(node);
+          if (node !== contentRef.current) {
+            composedRef(node);
+            track(node);
+          }
+          contentBoundingRect.current = node.getBoundingClientRect();
         }
       },
-      configurable: true,
-      enumerable: true,
     });
 
     return ref;
@@ -102,26 +103,24 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
 
   const onPointerMoveCapture = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isPressedDown.current) return;
+    if (!contentBoundingRect.current) return;
 
-    const contentRect = contentRef.current?.getBoundingClientRect();
-    if (!contentRect) return;
-
-    if (e.clientY < contentRect.top || e.clientY > contentRect.bottom) {
+    // If the pointer is outside the content, scale the content
+    if (e.clientY < contentBoundingRect.current.top || e.clientY > contentBoundingRect.current.bottom) {
       let distance = 0;
       const maxDistance = 100;
       const maxScale = 1.1;
 
-      if (e.clientY < contentRect.top) {
-        distance = contentRect.top - e.clientY;
+      if (e.clientY < contentBoundingRect.current.top) {
+        distance = contentBoundingRect.current.top - e.clientY;
         contentRef.current!.style.transformOrigin = 'bottom';
       } else {
-        distance = e.clientY - contentRect.bottom;
+        distance = e.clientY - contentBoundingRect.current.bottom;
         contentRef.current!.style.transformOrigin = 'top';
       }
 
       // Linear scaling based on distance, capped at maxScale
       const scaleFactor = 1 + (maxScale - 1) * (Math.min(distance, maxDistance) / maxDistance);
-
       set(contentRef.current, 'scaleY', 'dest', scaleFactor);
 
       render();
@@ -169,7 +168,7 @@ type ItemProps = React.ComponentPropsWithoutRef<'button'> & {
 };
 
 const Item = React.forwardRef<HTMLButtonElement, ItemProps>(({ children, disabled, asChild, ...rest }, ref) => {
-  const { track, contentRef, set, tabRef, focus } = usePopoverContext();
+  const { track, contentBoundingRect, set, tabRef, focus } = usePopoverContext();
 
   const scope = useConstant(() => {
     const ref = {
@@ -200,15 +199,15 @@ const Item = React.forwardRef<HTMLButtonElement, ItemProps>(({ children, disable
   const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
     const target = e.target as HTMLButtonElement | null;
     if (!target || disabled || target.role !== 'menuitem') return;
+    if (!contentBoundingRect.current) return;
 
-    const containerRect = contentRef.current!.getBoundingClientRect();
     const rect = target.getBoundingClientRect();
 
     const distanceFromMiddle = e.clientY - (rect.top + rect.height / 2);
     const normalizedDistance = distanceFromMiddle / (rect.height / 2);
     const translateY = 5 * Math.tanh(normalizedDistance);
     const hoveredElementTranslateY = translateY * 0.9; // 70% of the tabRef movement
-    const relativeTop = rect.top - containerRect.top;
+    const relativeTop = rect.top - contentBoundingRect.current.top;
 
     tabRef.current && set(tabRef.current, 'y', 'dest', relativeTop + translateY);
 
