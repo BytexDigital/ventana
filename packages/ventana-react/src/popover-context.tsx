@@ -231,10 +231,11 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
       set(target, 'scaleX', 'dest', 1.1);
     }
 
-    tabRef.current && set(tabRef.current, 'y', 'dest', relativeTop + translateY);
+    if (tabRef.current) {
+      set(tabRef.current, 'y', 'dest', relativeTop + translateY);
+    }
 
     set(target, 'y', 'dest', hoveredElementTranslateY);
-
     render();
   };
 

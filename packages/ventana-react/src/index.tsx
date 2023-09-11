@@ -78,9 +78,26 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
     return ref;
   });
 
+  const onPointerUp = (e: PointerEvent) => {
+    if (!isPressedDown.current) return;
+
+    window.removeEventListener('pointerup', onPointerUp);
+
+    set(contentRef.current!, 'scaleY', 'dest', 1);
+
+    (contentRef.current as Element).releasePointerCapture(e.pointerId);
+    isPressedDown.current = false;
+
+    render();
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPressedDown.current) return;
+
     (contentRef.current as Element).setPointerCapture(e.pointerId);
     isPressedDown.current = true;
+    // not a fan but this is needed to prevent the pointerup event from suspending the pointermove event
+    window.addEventListener('pointerup', onPointerUp);
   };
 
   const onPointerMoveCapture = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -106,7 +123,6 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
       const scaleFactor = 1 + (maxScale - 1) * (Math.min(distance, maxDistance) / maxDistance);
 
       set(contentRef.current, 'scaleY', 'dest', scaleFactor);
-      console.log(cache.current?.get(contentRef.current!)?.scaleY.dest);
 
       render();
       return;
@@ -120,15 +136,8 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
       if (!target) break;
     }
 
-    if (!target) return;
+    if (!target) return console.log('on capture no target');
     focus(target as HTMLElement, e.clientY);
-  };
-
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    set(contentRef.current!, 'scaleY', 'dest', 1);
-    (contentRef.current as Element).releasePointerCapture(e.pointerId);
-    isPressedDown.current = false;
-    render();
   };
 
   React.useEffect(() => {
@@ -145,7 +154,7 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
       ventana-content=""
       onPointerMove={onPointerMoveCapture}
       onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
+      //onPointerUp={onPointerUp}
       {...rest}
     >
       {children}
@@ -189,8 +198,8 @@ const Item = React.forwardRef<HTMLButtonElement, ItemProps>(({ children, disable
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
-    const target = e.target as HTMLElement;
-    if (!e.target || disabled || target.role !== 'menuitem') return;
+    const target = e.target as HTMLButtonElement | null;
+    if (!target || disabled || target.role !== 'menuitem') return;
 
     const containerRect = contentRef.current!.getBoundingClientRect();
     const rect = target.getBoundingClientRect();
@@ -206,6 +215,19 @@ const Item = React.forwardRef<HTMLButtonElement, ItemProps>(({ children, disable
     set(target, 'y', 'dest', hoveredElementTranslateY);
   };
 
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.pointerType === 'mouse') return;
+
+    let target = e.target as HTMLElement;
+    while (target && target.role !== 'menuitem') {
+      target = target.parentElement!;
+      if (!target) break;
+    }
+
+    if (!target || disabled || target.role !== 'menuitem') return;
+    focus(target, e.clientY);
+  };
+
   const Comp = asChild ? Slot : 'button';
 
   return (
@@ -218,7 +240,8 @@ const Item = React.forwardRef<HTMLButtonElement, ItemProps>(({ children, disable
       disabled={undefined}
       onPointerEnter={onPointerEnter}
       onPointerMove={onPointerMove}
-      onFocus={() => console.log('focus')}
+      //onFocus={() => console.log('focus')}
+      onPointerDown={onPointerDown}
       {...rest}
     >
       {children}
