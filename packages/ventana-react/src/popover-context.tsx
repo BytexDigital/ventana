@@ -1,5 +1,14 @@
 import React from 'react';
-import { ElementSpringConfig, SpringConfig, spring, springGoToEnd, Cache, springStep, MOTION_STEP } from './motion';
+import {
+  springGoToEnd,
+  Cache,
+  springStep,
+  MOTION_STEP,
+  ElementMotionProp,
+  ElementMotionConfig,
+  MotionValues,
+} from './motion';
+import { MotionList } from './cache';
 
 interface PopoverContextValue {
   triggerRef: React.RefObject<HTMLElement>;
@@ -11,18 +20,21 @@ interface PopoverContextValue {
   // spring
   cache: React.RefObject<Cache>;
   animationFrame: React.RefObject<number | null>;
-  track: (element: Element | HTMLElement | null) => void;
+  track: (element: HTMLElement, motion?: ElementMotionProp) => void;
   reset: (element: Element | HTMLElement | null) => void;
   clear: () => void;
   set: (
     element: Element | HTMLElement | null,
-    property: keyof ElementSpringConfig,
-    subProperty: keyof SpringConfig,
+    property: keyof ElementMotionConfig,
+    subProperty: keyof MotionValues,
     value: number,
     immediate?: boolean,
   ) => void;
   render: () => void;
   focus: (target: HTMLElement, clientY: number) => void;
+
+  onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  onFocus: (e: React.FocusEvent<HTMLDivElement>) => void;
 }
 
 export const PopoverContext = React.createContext<PopoverContextValue>({
@@ -41,6 +53,8 @@ export const PopoverContext = React.createContext<PopoverContextValue>({
   set: () => {},
   render: () => {},
   focus: () => {},
+  onKeyDown: () => {},
+  onFocus: () => {},
 });
 
 export const usePopoverContext = () => React.useContext(PopoverContext);
@@ -61,19 +75,22 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
 
   // spring
   const cache = React.useRef<Cache>(new Map());
+  const newCache = React.useRef(new MotionList());
   const isRendering = React.useRef(false);
   const animatedUntilTime = React.useRef<number | null>(null);
   const animationFrame = React.useRef<number | null>(null);
+  const isInitialFocus = React.useRef(true);
 
-  const springForEach = (fn: (s: SpringConfig) => void) => {
-    for (const value of cache.current.values()) {
-      fn(value.x);
-      fn(value.y);
-      fn(value.w);
-      fn(value.h);
-      fn(value.opacity);
-      fn(value.scaleX);
-      fn(value.scaleY);
+  const springForEach = (fn: (s: MotionValues) => void) => {
+    for (const value of newCache.current.lookupMap.values()) {
+      const motion = value.motion;
+      fn(motion.x);
+      fn(motion.y);
+      fn(motion.w);
+      fn(motion.h);
+      fn(motion.opacity);
+      fn(motion.scaleX);
+      fn(motion.scaleY);
     }
   };
 
@@ -95,14 +112,16 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
       }
     });
 
-    for (const [key, value] of cache.current.entries()) {
+    for (const [key, value] of newCache.current.lookupMap.entries()) {
       if (!key) continue;
+      const motion = value.motion;
+      if (!motion) continue;
 
       const element = key as HTMLElement;
-      element.style.opacity = `${value.opacity.current}`;
-      element.style.height = `${value.h.current}px`;
-      element.style.width = `${value.w.current}px`;
-      element.style.transform = `translate3d(${value.x.current}px,${value.y.current}px,0) scale(${value.scaleX.current},${value.scaleY.current})`;
+      element.style.opacity = `${motion.opacity.current}`;
+      element.style.height = `${motion.h.current}px`;
+      element.style.width = `${motion.w.current}px`;
+      element.style.transform = `translate3d(${motion.x.current}px,${motion.y.current}px,0) scale(${motion.scaleX.current},${motion.scaleY.current})`;
     }
 
     animatedUntilTime.current = stillAnimating ? newAnimatedUntilTime : null;
@@ -119,22 +138,10 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
     });
   };
 
-  const track = (element: Element | HTMLElement | null) => {
+  const track = (element: HTMLElement, motion?: ElementMotionProp) => {
     if (!element || !(element instanceof HTMLElement)) return;
-
-    const { width, height } = element.getBoundingClientRect();
-
-    const config = {
-      x: spring(0),
-      y: spring(0),
-      w: spring(width),
-      h: spring(height),
-      opacity: spring(1),
-      scaleX: spring(1),
-      scaleY: spring(1),
-    } satisfies ElementSpringConfig;
-
-    cache.current.set(element, config);
+    newCache.current.append(element, motion);
+    // console.log('newCache.current', newCache.current.lookupMap);
   };
 
   const reset = (element: Element | HTMLElement | null) => {
@@ -143,24 +150,24 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
     element.setAttribute('ventana-selected', 'false');
     element.setAttribute('aria-selected', 'false');
 
-    const config = cache.current.get(element);
+    const config = newCache.current.lookupMap.get(element)?.motion;
     if (!config) return;
 
     for (const prop in config) {
-      config[prop as keyof ElementSpringConfig].dest = config[prop as keyof ElementSpringConfig].initial;
+      config[prop as keyof ElementMotionConfig].dest = config[prop as keyof ElementMotionConfig].initial;
     }
   };
 
   const set = (
     element: Element | HTMLElement | null,
-    property: keyof ElementSpringConfig,
-    subProperty: keyof SpringConfig,
+    property: keyof ElementMotionConfig,
+    subProperty: keyof MotionValues,
     value: number,
     immediate = false,
   ) => {
     if (!element || !(element instanceof HTMLElement)) return;
 
-    const config = cache.current.get(element);
+    const config = newCache.current.lookupMap.get(element)?.motion;
     if (!config) return;
 
     const springConfig = config[property];
@@ -179,6 +186,7 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
 
   const clear = () => {
     cache.current.clear();
+    newCache.current.clear();
     selectedElementRef.current = null;
 
     if (animationFrame.current) {
@@ -207,7 +215,6 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
       // first time pointer enters so enter from pointer enter direction
       if (!selectedElementRef.current && tabRef.current) {
         contentComputedCalculations.current = parseInt(window.getComputedStyle(contentRef.current!).paddingLeft || '0');
-
         set(tabRef.current, 'y', 'dest', relativeTop + translateY * 3, true);
       }
 
@@ -219,8 +226,8 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
       selectedElementRef.current = target as HTMLButtonElement;
 
       // use the cache to get the initial values of the hovered element due to possible spring changes
-      const initialWidth = cache.current?.get(target)?.w?.initial ?? 0;
-      const initialHeight = cache.current?.get(target)?.h?.initial ?? 0;
+      const initialWidth = newCache.current?.lookupMap.get(target)?.motion.w?.initial ?? 0;
+      const initialHeight = newCache.current?.lookupMap.get(target)?.motion.h?.initial ?? 0;
       const widthIncrease = 0.1 * initialWidth;
       const halfWidthIncrease = widthIncrease / 2;
 
@@ -242,6 +249,63 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
     render();
   };
 
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const hasFocused = isInitialFocus.current && selectedElementRef.current === null;
+
+    if (['ArrowDown'].includes(e.key)) {
+      // initial focus on first element
+      if (hasFocused) {
+        const firstElement = newCache.current.head?.value;
+        if (firstElement) {
+          focus(firstElement as HTMLElement, 0);
+          //firstElement.focus();
+          return;
+        }
+      }
+
+      // focus on next element if exists or first element of menu if not
+      if (selectedElementRef.current) {
+        let nextElement = newCache.current.lookupMap.get(selectedElementRef.current)?.next?.value;
+
+        if (nextElement === null || nextElement === undefined) {
+          nextElement = newCache.current.head?.value;
+        }
+
+        focus(nextElement as HTMLElement, 0);
+        return;
+      }
+    }
+
+    if (['ArrowUp'].includes(e.key)) {
+      // initial focus on last element
+      if (hasFocused) {
+        const lastElement = newCache.current.tail?.value;
+        if (lastElement) {
+          focus(lastElement as HTMLElement, 0);
+          return;
+        }
+      }
+
+      // focus on previous element if exists or last element of menu if not
+      if (selectedElementRef.current) {
+        let previousElement = newCache.current.lookupMap.get(selectedElementRef.current)?.prev?.value;
+
+        console.log('previousElement', previousElement);
+
+        if (previousElement === null || previousElement === undefined) {
+          previousElement = newCache.current.tail?.value;
+        }
+
+        focus(previousElement as HTMLElement, 0);
+        return;
+      }
+    }
+  };
+
+  const onFocus = (e: React.FocusEvent<HTMLDivElement>) => {
+    console.log('onFocus', e);
+  };
+
   return (
     <PopoverContext.Provider
       value={{
@@ -259,6 +323,8 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
         set,
         render,
         focus,
+        onKeyDown,
+        onFocus,
       }}
     >
       {children}
