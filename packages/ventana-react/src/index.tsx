@@ -1,5 +1,8 @@
 'use client';
 
+// import { Ventana } from './ventana-menu';
+import { VentanaDialog } from './ventana-dialog';
+
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import React from 'react';
 import './styles.css';
@@ -8,6 +11,7 @@ import { PopoverProvider, usePopoverContext } from './popover-context';
 import { useComposedRefs } from './use-composed-ref';
 import { Slot } from '@radix-ui/react-slot';
 import { useConstant } from './use-constant';
+import { ElementMotionProp } from './motion';
 
 interface VentanaProps {
   children: React.ReactNode;
@@ -53,7 +57,8 @@ const Tab = React.forwardRef<HTMLDivElement, TabProps>((props, ref) => {
 type ContentProps = React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>;
 
 const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ children, ...rest }, ref) {
-  const { track, contentRef, contentBoundingRect, clear, focus, set, render } = usePopoverContext();
+  const { track, contentRef, contentBoundingRect, selectedElementRef, clear, focus, set, render, onKeyDown } =
+    usePopoverContext();
 
   // Combine the internal contentRef with the forwarded ref
   const composedRef = useComposedRefs(ref, contentRef);
@@ -128,14 +133,7 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
     }
 
     let target = document.elementFromPoint(e.clientX, e.clientY);
-    if (!target) return;
-
-    while (target && target.role !== 'menuitem') {
-      target = target.parentElement!;
-      if (!target) break;
-    }
-
-    if (!target) return console.log('on capture no target');
+    if (!target || target.role !== 'menuitem') return;
     focus(target as HTMLElement, e.clientY);
   };
 
@@ -150,9 +148,11 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
     <PopoverPrimitive.Content
       role="menu"
       ref={scope}
+      aria-activedescendant=""
       ventana-content=""
       onPointerMove={onPointerMoveCapture}
       onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
       //onPointerUp={onPointerUp}
       {...rest}
     >
@@ -163,90 +163,75 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
 
 Content.displayName = 'Ventana.Content';
 
-type ItemProps = React.ComponentPropsWithoutRef<'button'> & {
+type ItemProps = React.ComponentPropsWithoutRef<'div'> & {
   asChild?: boolean;
+  disabled?: boolean;
+  motion?: ElementMotionProp;
 };
 
-const Item = React.forwardRef<HTMLButtonElement, ItemProps>(({ children, disabled, asChild, ...rest }, ref) => {
-  const { track, contentBoundingRect, set, tabRef, focus } = usePopoverContext();
+const Item = React.forwardRef<HTMLDivElement, ItemProps>(
+  ({ children, disabled, asChild, motion, ...rest }, forwardedRef) => {
+    const { track, contentBoundingRect, set, tabRef, focus, onFocus } = usePopoverContext();
 
-  const scope = useConstant(() => {
-    const ref = {
-      current: null!,
+    const composedRef = useComposedRefs(forwardedRef);
+
+    const scoped = React.useCallback((node: HTMLDivElement) => {
+      if (!node) return;
+      composedRef(node);
+      track(node, motion);
+    }, []);
+
+    const onPointerEnter = (e: React.PointerEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLButtonElement | null;
+      if (!target || disabled || target.role !== 'menuitem') return;
+      //target.focus();
+      focus(target, e.clientY);
     };
 
-    Object.defineProperty(ref, 'current', {
-      set: function (node: HTMLButtonElement) {
-        if (node) {
-          track(node);
-        }
-      },
-      configurable: true,
-      enumerable: true,
-    });
+    const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLButtonElement | null;
+      if (!target || disabled || target.role !== 'menuitem') return;
+      if (!contentBoundingRect.current) return;
 
-    return ref;
-  });
+      const rect = target.getBoundingClientRect();
+      const distanceFromMiddle = e.clientY - (rect.top + rect.height / 2);
+      const normalizedDistance = distanceFromMiddle / (rect.height / 2);
+      const translateY = 5 * Math.tanh(normalizedDistance);
+      const hoveredElementTranslateY = translateY * 0.9; // 70% of the tabRef movement
+      const relativeTop = rect.top - contentBoundingRect.current.top;
 
-  const onPointerEnter = (e: React.PointerEvent<HTMLButtonElement>) => {
-    const target = e.target as HTMLButtonElement | null;
+      tabRef.current && set(tabRef.current, 'y', 'dest', relativeTop + translateY);
+      set(target, 'y', 'dest', hoveredElementTranslateY);
+    };
 
-    if (!target || disabled || target.role !== 'menuitem') return;
+    const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === 'mouse') return;
+      let target = e.target as HTMLElement;
+      if (!target || disabled || target.role !== 'menuitem') return;
+      focus(target, e.clientY);
+    };
 
-    focus(target, e.clientY);
-  };
+    const Comp = asChild ? Slot : 'div';
 
-  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
-    const target = e.target as HTMLButtonElement | null;
-    if (!target || disabled || target.role !== 'menuitem') return;
-    if (!contentBoundingRect.current) return;
-
-    const rect = target.getBoundingClientRect();
-
-    const distanceFromMiddle = e.clientY - (rect.top + rect.height / 2);
-    const normalizedDistance = distanceFromMiddle / (rect.height / 2);
-    const translateY = 5 * Math.tanh(normalizedDistance);
-    const hoveredElementTranslateY = translateY * 0.9; // 70% of the tabRef movement
-    const relativeTop = rect.top - contentBoundingRect.current.top;
-
-    tabRef.current && set(tabRef.current, 'y', 'dest', relativeTop + translateY);
-
-    set(target, 'y', 'dest', hoveredElementTranslateY);
-  };
-
-  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (e.pointerType === 'mouse') return;
-
-    let target = e.target as HTMLElement;
-    while (target && target.role !== 'menuitem') {
-      target = target.parentElement!;
-      if (!target) break;
-    }
-
-    if (!target || disabled || target.role !== 'menuitem') return;
-    focus(target, e.clientY);
-  };
-
-  const Comp = asChild ? Slot : 'button';
-
-  return (
-    <Comp
-      role="menuitem"
-      ventana-item=""
-      ref={scope}
-      tabIndex={disabled === true ? undefined : -1}
-      aria-disabled={disabled === true ? true : undefined}
-      disabled={undefined}
-      onPointerEnter={onPointerEnter}
-      onPointerMove={onPointerMove}
-      //onFocus={() => console.log('focus')}
-      onPointerDown={onPointerDown}
-      {...rest}
-    >
-      {children}
-    </Comp>
-  );
-});
+    return (
+      <Comp
+        role="menuitem"
+        ventana-item=""
+        ref={scoped}
+        tabIndex={disabled === true ? undefined : -1}
+        aria-disabled={disabled === true ? true : undefined}
+        data-disabled={disabled === true ? '' : undefined}
+        onPointerEnter={onPointerEnter}
+        onPointerMove={onPointerMove}
+        onPointerDown={onPointerDown}
+        //onFocus={onFocus}
+        {...rest}
+      >
+        {children}
+      </Comp>
+    );
+  },
+);
 
 Item.displayName = 'Ventana.Item';
 
@@ -258,3 +243,5 @@ export const Ventana = {
   Item,
   Tab,
 };
+
+// export { VentanaDialog };
