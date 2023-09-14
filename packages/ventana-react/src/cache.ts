@@ -1,4 +1,4 @@
-import { ElementMotionConfig, ElementMotionProp, MotionCustomValues, spring } from './motion';
+import { ElementMotionConfig, ElementMotionProp, spring } from './motion';
 
 type MotionElement<T> = {
   value: T;
@@ -34,6 +34,7 @@ export class MotionList<T extends HTMLElement> {
       motion: config,
     } as MotionElement<T>;
 
+    // only add to the dll if it's a menuitem
     if (node.role === 'menuitem') {
       if (this.tail !== null) {
         this.tail.next = newNode;

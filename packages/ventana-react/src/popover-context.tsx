@@ -13,15 +13,11 @@ import { MotionList } from './cache';
 interface PopoverContextValue {
   triggerRef: React.RefObject<HTMLElement>;
   contentRef: React.RefObject<HTMLDivElement>;
-  contentComputedCalculations: React.MutableRefObject<number>;
-  contentBoundingRect: React.MutableRefObject<DOMRect | null>;
+  contentRefDimensions: React.MutableRefObject<DOMRect | null>;
   tabRef: React.RefObject<HTMLDivElement>;
-  selectedElementRef: React.MutableRefObject<HTMLButtonElement | null>;
+  selectedElementRef: React.MutableRefObject<HTMLDivElement | null>;
   // spring
-  cache: React.RefObject<Cache>;
-  animationFrame: React.RefObject<number | null>;
   track: (element: HTMLElement, motion?: ElementMotionProp) => void;
-  reset: (element: Element | HTMLElement | null) => void;
   clear: () => void;
   set: (
     element: Element | HTMLElement | null,
@@ -31,47 +27,40 @@ interface PopoverContextValue {
     immediate?: boolean,
   ) => void;
   render: () => void;
-  focus: (target: HTMLElement, clientY: number) => void;
-
   onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
-  onFocus: (e: React.FocusEvent<HTMLDivElement>) => void;
+  onFocus: (e: React.FocusEvent<HTMLDivElement> | React.PointerEvent<HTMLDivElement>) => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const PopoverContext = React.createContext<PopoverContextValue>({
   triggerRef: { current: null },
   contentRef: { current: null },
-  contentComputedCalculations: { current: 0 },
-  contentBoundingRect: { current: null },
+  contentRefDimensions: { current: null },
   tabRef: { current: null },
   selectedElementRef: { current: null },
   // spring
-  cache: { current: null },
-  animationFrame: { current: null },
   track: () => {},
-  reset: () => {},
   clear: () => {},
   set: () => {},
   render: () => {},
-  focus: () => {},
   onKeyDown: () => {},
   onFocus: () => {},
+  onOpenChange: () => {},
 });
 
 export const usePopoverContext = () => React.useContext(PopoverContext);
 
 interface PopoverProviderProps {
   children: React.ReactNode;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export const PopoverProvider = ({ children }: PopoverProviderProps) => {
+export const PopoverProvider = ({ children, onOpenChange }: PopoverProviderProps) => {
   const triggerRef = React.useRef<HTMLElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const contentComputedCalculations = React.useRef(0);
-  const contentBoundingRect = React.useRef<DOMRect | null>(null);
+  const contentRefDimensions = React.useRef<DOMRect | null>(null);
   const tabRef = React.useRef<HTMLDivElement>(null);
-  const selectedElementRef: React.MutableRefObject<HTMLButtonElement | null> = React.useRef<HTMLButtonElement | null>(
-    null,
-  );
+  const selectedElementRef: React.MutableRefObject<HTMLDivElement | null> = React.useRef<HTMLDivElement | null>(null);
 
   // spring
   const cache = React.useRef<Cache>(new Map());
@@ -196,69 +185,16 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
     }
   };
 
-  const focus = (target: HTMLElement, clientY: number) => {
-    const containerRect = contentRef.current!.getBoundingClientRect();
-    const rect = target.getBoundingClientRect();
-
-    const distanceFromMiddle = clientY - (rect.top + rect.height / 2);
-    const normalizedDistance = distanceFromMiddle / (rect.height / 2);
-    const translateY = 5 * Math.tanh(normalizedDistance);
-    const hoveredElementTranslateY = translateY * 0.9; // 70% of the tabRef movement
-    const relativeTop = rect.top - containerRect.top;
-
-    if (selectedElementRef.current !== target) {
-      // Reset the previous element if it exists
-      if (selectedElementRef.current) {
-        reset(selectedElementRef.current);
-      }
-
-      // first time pointer enters so enter from pointer enter direction
-      if (!selectedElementRef.current && tabRef.current) {
-        contentComputedCalculations.current = parseInt(window.getComputedStyle(contentRef.current!).paddingLeft || '0');
-        set(tabRef.current, 'y', 'dest', relativeTop + translateY * 3, true);
-      }
-
-      // Set the new element
-      target.setAttribute('ventana-selected', 'true');
-      target.setAttribute('aria-selected', 'true');
-
-      // Update the ref to point to the current element
-      selectedElementRef.current = target as HTMLButtonElement;
-
-      // use the cache to get the initial values of the hovered element due to possible spring changes
-      const initialWidth = newCache.current?.lookupMap.get(target)?.motion.w?.initial ?? 0;
-      const initialHeight = newCache.current?.lookupMap.get(target)?.motion.h?.initial ?? 0;
-      const widthIncrease = 0.1 * initialWidth;
-      const halfWidthIncrease = widthIncrease / 2;
-
-      if (tabRef.current) {
-        set(tabRef.current, 'w', 'dest', initialWidth * 1.1, true);
-        set(tabRef.current, 'h', 'dest', initialHeight * 1.1, true);
-        set(tabRef.current, 'x', 'dest', 0 - halfWidthIncrease + contentComputedCalculations.current, true);
-      }
-
-      set(target, 'scaleY', 'dest', 1.1);
-      set(target, 'scaleX', 'dest', 1.1);
-    }
-
-    if (tabRef.current) {
-      set(tabRef.current, 'y', 'dest', relativeTop + translateY);
-    }
-
-    set(target, 'y', 'dest', hoveredElementTranslateY);
-    render();
-  };
-
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const hasFocused = isInitialFocus.current && selectedElementRef.current === null;
 
-    if (['ArrowDown'].includes(e.key)) {
+    if (['ArrowDown', 'ArrowRight'].includes(e.key)) {
       // initial focus on first element
       if (hasFocused) {
         const firstElement = newCache.current.head?.value;
         if (firstElement) {
-          focus(firstElement as HTMLElement, 0);
-          //firstElement.focus();
+          //focus(firstElement as HTMLElement, 0);
+          firstElement.focus();
           return;
         }
       }
@@ -271,17 +207,19 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
           nextElement = newCache.current.head?.value;
         }
 
-        focus(nextElement as HTMLElement, 0);
+        //focus(nextElement as HTMLElement, 0);
+        nextElement?.focus();
         return;
       }
     }
 
-    if (['ArrowUp'].includes(e.key)) {
+    if (['ArrowUp', 'ArrowLeft'].includes(e.key)) {
       // initial focus on last element
       if (hasFocused) {
         const lastElement = newCache.current.tail?.value;
         if (lastElement) {
-          focus(lastElement as HTMLElement, 0);
+          //focus(lastElement as HTMLElement, 0);
+          lastElement.focus();
           return;
         }
       }
@@ -290,20 +228,105 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
       if (selectedElementRef.current) {
         let previousElement = newCache.current.lookupMap.get(selectedElementRef.current)?.prev?.value;
 
-        console.log('previousElement', previousElement);
-
         if (previousElement === null || previousElement === undefined) {
           previousElement = newCache.current.tail?.value;
         }
 
-        focus(previousElement as HTMLElement, 0);
+        //focus(previousElement as HTMLElement, 0);
+        previousElement?.focus();
         return;
       }
     }
   };
 
-  const onFocus = (e: React.FocusEvent<HTMLDivElement>) => {
-    console.log('onFocus', e);
+  const onFocus = (
+    e: React.FocusEvent<HTMLDivElement> | React.PointerEvent<HTMLDivElement>,
+    focusedTarget?: HTMLDivElement,
+  ) => {
+    const target =
+      focusedTarget !== undefined && focusedTarget !== null ? focusedTarget : (e.target as HTMLDivElement | null);
+    if (target === null || target.role !== 'menuitem') return;
+
+    const isInitialFocus = !selectedElementRef.current;
+    const containerRect = contentRef.current!.getBoundingClientRect();
+    const rect = target.getBoundingClientRect();
+
+    const scaleFactor = 1.1;
+
+    const originalWidth = newCache.current?.lookupMap.get(target)?.motion.w?.initial ?? 0;
+    const originalHeight = newCache.current?.lookupMap.get(target)?.motion.h?.initial ?? 0;
+    const middleY = (rect.top + rect.bottom) / 2;
+
+    const scaledHeight = originalHeight * scaleFactor;
+    const heightDifference = scaledHeight - originalHeight;
+
+    const itemY = rect.top - containerRect.top;
+    const newTabY = itemY - heightDifference / 2;
+    const newTabX = 0 - (originalWidth * 0.1) / 2;
+
+    if (selectedElementRef.current !== target) {
+      // Reset the previous element if it exists
+      selectedElementRef.current && reset(selectedElementRef.current);
+      selectedElementRef.current = target;
+
+      // set aria attributes on the new element and the content element
+      target.setAttribute('ventana-selected', 'true');
+      target.setAttribute('aria-selected', 'true');
+      contentRef.current?.setAttribute('aria-activedescendant', target.id);
+    }
+
+    if (isInitialFocus) {
+      console.log('isInitialFocus', e.type);
+      if (e.type === 'pointermove') {
+        e = e as React.PointerEvent<HTMLDivElement>;
+        const mouseY = e.clientY;
+        set(tabRef.current!, 'y', 'dest', mouseY < middleY ? newTabY - 10 : newTabY + 10, true);
+      }
+
+      set(target!, 'scaleX', 'dest', 1.1, e.type === 'focus');
+      set(target!, 'scaleY', 'dest', 1.1, e.type === 'focus');
+      set(tabRef.current!, 'w', 'dest', originalWidth * 1.1, true);
+      set(tabRef.current!, 'h', 'dest', originalHeight * 1.1, true);
+      set(tabRef.current!, 'x', 'dest', newTabX, true);
+      set(tabRef.current!, 'y', 'dest', newTabY, e.type === 'focus');
+
+      render();
+      return;
+    }
+
+    // (on)focus specfic logic
+    if (e.type === 'focus') {
+      e = e as React.FocusEvent<HTMLDivElement>;
+
+      set(tabRef.current, 'y', 'dest', newTabY);
+      set(tabRef.current, 'h', 'dest', originalHeight * 1.1);
+      set(target, 'scaleX', 'dest', 1.1);
+      set(target, 'scaleY', 'dest', 1.1);
+
+      render();
+      return;
+    }
+
+    // pointermove specific logic
+    if (e.type === 'pointermove') {
+      e = e as React.PointerEvent<HTMLDivElement>;
+
+      const distanceFromMiddle = e.clientY - middleY;
+      const normalizedDistance = distanceFromMiddle / (rect.height / 2);
+      const tanhY = 5 * Math.tanh(normalizedDistance);
+      const dampY = tanhY * 0.9; // 90% of the tabRef movement
+
+      if (tabRef.current) {
+        set(tabRef.current, 'y', 'dest', newTabY + tanhY);
+        set(tabRef.current, 'h', 'dest', originalHeight * 1.1);
+        set(target, 'y', 'dest', dampY);
+        set(target, 'scaleX', 'dest', 1.1);
+        set(target, 'scaleY', 'dest', 1.1);
+        render();
+      }
+
+      return;
+    }
   };
 
   return (
@@ -311,20 +334,16 @@ export const PopoverProvider = ({ children }: PopoverProviderProps) => {
       value={{
         triggerRef,
         contentRef,
-        contentComputedCalculations,
-        contentBoundingRect,
+        contentRefDimensions,
         tabRef,
         selectedElementRef,
-        cache,
-        animationFrame,
         track,
-        reset,
         clear,
         set,
         render,
-        focus,
         onKeyDown,
         onFocus,
+        onOpenChange,
       }}
     >
       {children}

@@ -1,17 +1,14 @@
 'use client';
 
-// import { Ventana } from './ventana-menu';
-import { VentanaDialog } from './ventana-dialog';
-
 import * as PopoverPrimitive from '@radix-ui/react-popover';
-import React from 'react';
+import React, { useId } from 'react';
 import './styles.css';
 import { useControllableState } from './use-controllable-state';
 import { PopoverProvider, usePopoverContext } from './popover-context';
 import { useComposedRefs } from './use-composed-ref';
 import { Slot } from '@radix-ui/react-slot';
-import { useConstant } from './use-constant';
 import { ElementMotionProp } from './motion';
+import { mergeEventHandlers } from './merge-event-handlers';
 
 interface VentanaProps {
   children: React.ReactNode;
@@ -30,7 +27,7 @@ const Root = ({ children, open: openProp, defaultOpen, onOpenChange, modal = fal
 
   return (
     <PopoverPrimitive.Root modal={modal} open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverProvider>{children}</PopoverProvider>
+      <PopoverProvider onOpenChange={setIsOpen}>{children}</PopoverProvider>
     </PopoverPrimitive.Root>
   );
 };
@@ -56,33 +53,19 @@ const Tab = React.forwardRef<HTMLDivElement, TabProps>((props, ref) => {
 
 type ContentProps = React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>;
 
-const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ children, ...rest }, ref) {
-  const { track, contentRef, contentBoundingRect, selectedElementRef, clear, focus, set, render, onKeyDown } =
-    usePopoverContext();
+const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ children, ...rest }, forwardedRef) {
+  const { track, contentRef, contentRefDimensions, clear, set, onFocus, render, onKeyDown } = usePopoverContext();
 
   // Combine the internal contentRef with the forwarded ref
-  const composedRef = useComposedRefs(ref, contentRef);
   const isPressedDown = React.useRef(false);
 
-  const scope = useConstant(() => {
-    const ref = {
-      current: null!,
-    };
+  const composedRef = useComposedRefs(forwardedRef, contentRef);
 
-    Object.defineProperty(ref, 'current', {
-      set: function (node: HTMLDivElement) {
-        if (node) {
-          if (node !== contentRef.current) {
-            composedRef(node);
-            track(node);
-          }
-          contentBoundingRect.current = node.getBoundingClientRect();
-        }
-      },
-    });
-
-    return ref;
-  });
+  const scoped = React.useCallback((node: HTMLDivElement) => {
+    if (!node) return;
+    composedRef(node);
+    track(node);
+  }, []);
 
   const onPointerUp = (e: PointerEvent) => {
     if (!isPressedDown.current) return;
@@ -100,27 +83,29 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isPressedDown.current) return;
 
+    contentRefDimensions.current = contentRef.current!.getBoundingClientRect();
+
     (contentRef.current as Element).setPointerCapture(e.pointerId);
     isPressedDown.current = true;
-    // not a fan but this is needed to prevent the pointerup event from suspending the pointermove event
+
     window.addEventListener('pointerup', onPointerUp);
   };
 
   const onPointerMoveCapture = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isPressedDown.current) return;
-    if (!contentBoundingRect.current) return;
+    if (!contentRefDimensions.current) return;
 
     // If the pointer is outside the content, scale the content
-    if (e.clientY < contentBoundingRect.current.top || e.clientY > contentBoundingRect.current.bottom) {
+    if (e.clientY < contentRefDimensions.current.top || e.clientY > contentRefDimensions.current.bottom) {
       let distance = 0;
       const maxDistance = 100;
       const maxScale = 1.1;
 
-      if (e.clientY < contentBoundingRect.current.top) {
-        distance = contentBoundingRect.current.top - e.clientY;
+      if (e.clientY < contentRefDimensions.current.top) {
+        distance = contentRefDimensions.current.top - e.clientY;
         contentRef.current!.style.transformOrigin = 'bottom';
       } else {
-        distance = e.clientY - contentBoundingRect.current.bottom;
+        distance = e.clientY - contentRefDimensions.current.bottom;
         contentRef.current!.style.transformOrigin = 'top';
       }
 
@@ -134,7 +119,9 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
 
     let target = document.elementFromPoint(e.clientX, e.clientY);
     if (!target || target.role !== 'menuitem') return;
-    focus(target as HTMLElement, e.clientY);
+
+    onFocus(e);
+    (target as HTMLDivElement).focus();
   };
 
   React.useEffect(() => {
@@ -147,7 +134,7 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
   return (
     <PopoverPrimitive.Content
       role="menu"
-      ref={scope}
+      ref={scoped}
       aria-activedescendant=""
       ventana-content=""
       onPointerMove={onPointerMoveCapture}
@@ -170,10 +157,12 @@ type ItemProps = React.ComponentPropsWithoutRef<'div'> & {
 };
 
 const Item = React.forwardRef<HTMLDivElement, ItemProps>(
-  ({ children, disabled, asChild, motion, ...rest }, forwardedRef) => {
-    const { track, contentBoundingRect, set, tabRef, focus, onFocus } = usePopoverContext();
-
-    const composedRef = useComposedRefs(forwardedRef);
+  ({ children, disabled, asChild, onClick, motion, ...props }, forwardedRef) => {
+    const { track, onFocus, onOpenChange } = usePopoverContext();
+    const isPointerDown = React.useRef(false);
+    const itemRef = React.useRef<HTMLDivElement>(null);
+    const id = useId();
+    const composedRef = useComposedRefs(forwardedRef, itemRef);
 
     const scoped = React.useCallback((node: HTMLDivElement) => {
       if (!node) return;
@@ -181,51 +170,66 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>(
       track(node, motion);
     }, []);
 
-    const onPointerEnter = (e: React.PointerEvent<HTMLDivElement>) => {
-      const target = e.target as HTMLButtonElement | null;
-      if (!target || disabled || target.role !== 'menuitem') return;
-      //target.focus();
-      focus(target, e.clientY);
+    const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLDivElement | null;
+      if (!target || target.role !== 'menuitem') return;
+
+      onFocus(e);
+      target.focus();
     };
 
-    const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-      const target = e.target as HTMLButtonElement | null;
-      if (!target || disabled || target.role !== 'menuitem') return;
-      if (!contentBoundingRect.current) return;
+    const onSelect = (e: React.MouseEvent<HTMLDivElement>) => {
+      if (disabled) return;
+      mergeEventHandlers(
+        onClick,
+        (e) => {
+          if (e.defaultPrevented) {
+            isPointerDown.current = false;
+          } else {
+            onOpenChange?.(false);
+          }
+        },
+        false,
+      )(e);
+    };
 
-      const rect = target.getBoundingClientRect();
-      const distanceFromMiddle = e.clientY - (rect.top + rect.height / 2);
-      const normalizedDistance = distanceFromMiddle / (rect.height / 2);
-      const translateY = 5 * Math.tanh(normalizedDistance);
-      const hoveredElementTranslateY = translateY * 0.9; // 70% of the tabRef movement
-      const relativeTop = rect.top - contentBoundingRect.current.top;
-
-      tabRef.current && set(tabRef.current, 'y', 'dest', relativeTop + translateY);
-      set(target, 'y', 'dest', hoveredElementTranslateY);
+    const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (disabled) return;
+      if (['Enter', ' '].includes(e.key)) {
+        (e.target as HTMLDivElement)?.click();
+        e.preventDefault();
+      }
     };
 
     const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.pointerType === 'mouse') return;
-      let target = e.target as HTMLElement;
-      if (!target || disabled || target.role !== 'menuitem') return;
-      focus(target, e.clientY);
+      props.onPointerDown?.(e);
+      isPointerDown.current = true;
+    };
+
+    const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isPointerDown.current) return;
+      itemRef.current?.click();
     };
 
     const Comp = asChild ? Slot : 'div';
 
     return (
       <Comp
+        {...props}
+        id={'ventana-' + id}
         role="menuitem"
         ventana-item=""
         ref={scoped}
         tabIndex={disabled === true ? undefined : -1}
         aria-disabled={disabled === true ? true : undefined}
         data-disabled={disabled === true ? '' : undefined}
-        onPointerEnter={onPointerEnter}
         onPointerMove={onPointerMove}
+        //@ts-ignore
+        onFocus={onFocus}
+        onClick={onSelect}
         onPointerDown={onPointerDown}
-        //onFocus={onFocus}
-        {...rest}
+        onPointerUp={onPointerUp}
+        onKeyDown={onKeyDown}
       >
         {children}
       </Comp>
