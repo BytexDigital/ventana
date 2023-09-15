@@ -125,7 +125,7 @@ export const VentanaContextProvider = ({ children, onOpenChange }: PopoverProvid
   };
 
   const track = (element: HTMLElement, motion?: ElementMotionProp) => {
-    if (!element || !(element instanceof HTMLElement)) return;
+    if (!element || !(element instanceof HTMLElement) || cache.current.lookupMap.has(element)) return;
     cache.current.append(element, motion);
   };
 
@@ -156,9 +156,7 @@ export const VentanaContextProvider = ({ children, onOpenChange }: PopoverProvid
     if (!config) return;
 
     const springConfig = config[property];
-    if (!springConfig) {
-      return;
-    }
+    if (!springConfig) return;
 
     springConfig[subProperty] = value;
 
@@ -188,8 +186,8 @@ export const VentanaContextProvider = ({ children, onOpenChange }: PopoverProvid
       if (hasFocused) {
         const firstElement = cache.current.head?.value;
         if (firstElement) {
-          //focus(firstElement as HTMLElement, 0);
           firstElement.focus();
+
           return;
         }
       }
@@ -202,8 +200,8 @@ export const VentanaContextProvider = ({ children, onOpenChange }: PopoverProvid
           nextElement = cache.current.head?.value;
         }
 
-        //focus(nextElement as HTMLElement, 0);
         nextElement?.focus();
+
         return;
       }
     }
@@ -213,8 +211,8 @@ export const VentanaContextProvider = ({ children, onOpenChange }: PopoverProvid
       if (hasFocused) {
         const lastElement = cache.current.tail?.value;
         if (lastElement) {
-          //focus(lastElement as HTMLElement, 0);
           lastElement.focus();
+
           return;
         }
       }
@@ -227,8 +225,8 @@ export const VentanaContextProvider = ({ children, onOpenChange }: PopoverProvid
           previousElement = cache.current.tail?.value;
         }
 
-        //focus(previousElement as HTMLElement, 0);
         previousElement?.focus();
+
         return;
       }
     }

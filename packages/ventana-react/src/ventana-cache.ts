@@ -13,8 +13,6 @@ export class MotionList<T extends HTMLElement> {
   lookupMap: Map<T, MotionElement<T>> = new Map();
 
   append(node: T, motion?: ElementMotionProp) {
-    if (!node || !(node instanceof HTMLElement) || this.lookupMap.has(node)) return;
-
     const { width, height } = node.getBoundingClientRect();
 
     const config = {
