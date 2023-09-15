@@ -89,6 +89,9 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
     isPressedDown.current = true;
 
     window.addEventListener('pointerup', onPointerUp);
+
+    // prevent text selecting while dragging
+    e.preventDefault();
   };
 
   const onPointerMoveCapture = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -122,6 +125,9 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
 
     onFocus(e);
     (target as HTMLDivElement).focus();
+
+    // prevent text selecting while dragging
+    e.preventDefault();
   };
 
   React.useEffect(() => {
