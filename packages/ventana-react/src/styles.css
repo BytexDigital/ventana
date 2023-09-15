@@ -18,5 +18,9 @@
   z-index: 1;
 }
 
-[ventana-item][ventana-selected='true'] {
+[ventana-item] > * {
+  pointer-events: none;
+}
+
+[ventana-highlighted] {
 }
