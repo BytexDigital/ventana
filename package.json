@@ -12,10 +12,10 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.26.2",
-    "eslint": "^8.48.0",
+    "eslint": "^8.52.0",
     "prettier": "^3.0.3",
     "turbo": "latest"
   },
-  "packageManager": "pnpm@8.6.10",
+  "packageManager": "pnpm@8.7.6",
   "name": "ventana"
 }
