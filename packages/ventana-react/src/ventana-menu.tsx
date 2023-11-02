@@ -44,12 +44,15 @@ const Tab = React.forwardRef<HTMLDivElement, TabProps>((props, ref) => {
         if (!node) return;
         track(node);
         composedRef(node);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [])}
       ventana-tab=""
       {...props}
     ></div>
   );
 });
+
+Tab.displayName = 'Ventana.Tab';
 
 type ContentProps = React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>;
 
@@ -65,6 +68,7 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
     if (!node) return;
     composedRef(node);
     track(node);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onPointerUp = (e: PointerEvent) => {
@@ -135,6 +139,7 @@ const Content = React.forwardRef<HTMLDivElement, ContentProps>(function ({ child
     return () => {
       clear();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -174,6 +179,7 @@ const Item = React.forwardRef<HTMLDivElement, ItemProps>(
       if (!node) return;
       composedRef(node);
       track(node, motion);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
