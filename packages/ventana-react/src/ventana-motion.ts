@@ -15,8 +15,6 @@ export type ElementMotionConfig = {
   opacity: MotionValues;
   scaleX: MotionValues;
   scaleY: MotionValues;
-  // top: MotionValues;
-  // left: MotionValues;
 };
 
 export type MotionCustomValues = {
@@ -47,18 +45,13 @@ export const spring = (pos: number, motion?: MotionCustomValues) => {
 };
 
 export const springStep = (config: MotionValues) => {
-  // https://blog.maximeheckel.com/posts/the-physics-behind-spring-animations/
-  // this seems inspired by https://github.com/chenglou/react-motion/blob/9e3ce95bacaa9a1b259f969870a21c727232cc68/src/stepper.js
-  const t = MOTION_STEP / 1000; // convert to seconds for the physics equation
+  const t = MOTION_STEP / 1000;
   const { current, dest, v, k, b } = config;
-  // for animations, dest is actually spring at rest. Current position is the spring's stretched/compressed state
-  const Fspring = -k * (current - dest); // Spring stiffness, in kg / s^2
-  const Fdamper = -b * v; // Damping, in kg / s
-  const a = Fspring + Fdamper; // a needs to be divided by mass, but we'll assume mass of 1. Adjust k and b to change spring curve instead
+  const Fspring = -k * (current - dest);
+  const Fdamper = -b * v;
+  const a = Fspring + Fdamper;
   const newV = v + a * t;
   const newPos = current + newV * t;
-
-  //console.table({ current, dest, v, k, b, Fspring, Fdamper, a, newV, newPos });
 
   config.current = newPos;
   config.v = newV;
