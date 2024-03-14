@@ -14,10 +14,15 @@ const Actions = () => {
             side="top"
             align="center"
             sideOffset={10}
-            className="w-[80vw] flex flex-col max-w-[200px] bg-[#f2f2f2] shadow-md rounded-lg"
+            className="w-[80vw] flex flex-col max-w-[200px] bg-[#f2f2f2] shadow-md rounded-lg origin-bottom animate-in fade-in zoom-in"
           >
             <Ventana.Tab className="bg-white shadow-lg rounded-lg" />
-            <Ventana.Item className="bg-transparent text-black flex flex-row p-3 items-center gap-2">
+            <Ventana.Item
+              onClick={(e: any) => {
+                console.log('test');
+              }}
+              className="bg-transparent text-black flex flex-row p-3 items-center gap-2"
+            >
               <div className="rounded-full overflow-hidden bg-gray-300 flex items-center justify-center">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -45,7 +50,7 @@ const Actions = () => {
                       <path
                         d="M130.37 263.69c-2.1.2-4.22.31-6.37.31-30.78 0-56.05-21.57-58.76-49.1L127 241.5c.38 5.48 1.55 13.32 3.37 22.19Z"
                         fill="#000"
-                        // style="mix-blend-mode:multiply"
+                      // style="mix-blend-mode:multiply"
                       />
                       <path
                         d="M181.94 151.37v.01l.1.4.14.65A75.72 75.72 0 0 1 34.93 187.7l-.2-.74L18 117.13l-.06-.29A75.72 75.72 0 0 1 165.2 81.55l.05.21.02.08.05.2.05.2v.01l16.4 68.44.08.34.08.34Z"
@@ -141,10 +146,6 @@ const Actions = () => {
                   width="40"
                   height="40"
                 >
-                  <desc>
-                    "Avatar Illustration System" by "Micah Lanier", licensed under "CC BY 4.0". / Remix of the original.
-                    - Created with dicebear.com
-                  </desc>
                   <mask id="viewboxMask">
                     <rect width="360" height="360" rx="0" ry="0" x="0" y="0" fill="#fff" />
                   </mask>
@@ -373,6 +374,12 @@ const Actions = () => {
           </Ventana.Content>
         </Ventana.Portal>
       </Ventana.Root>
+      {/* <VentanaDialog.Root>
+        <VentanaDialog.Trigger className="bg-black text-[#f2f2f2] min-w-full md:min-w-max px-4 py-2 rounded-md">
+          Open
+        </VentanaDialog.Trigger>
+        <VentanaDialog.Content>Test</VentanaDialog.Content>
+      </VentanaDialog.Root> */}
       <a
         href="https://github.com/BytexDigital/ventana"
         target="_blank"
