@@ -1,4 +1,4 @@
-import { ElementMotionConfig, ElementMotionProp, spring } from './ventana-motion';
+import { type ElementMotionConfig, type ElementMotionProp, spring } from './ventana-motion';
 
 type MotionElement<T> = {
   value: T;
