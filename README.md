@@ -63,7 +63,6 @@ function Component() {
             <h1>Item 3</h1>
           </Ventana.Item>
         </Ventana.Content>
-        <Ventana.Overlay />
       </Ventana.Portal>
     </Ventana.Root>
   );
